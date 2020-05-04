@@ -39,7 +39,7 @@
             // 
             // serviceInstaller1
             // 
-            this.serviceInstaller1.Description = "Monitors datecs directory to send ecr command form inp file.";
+            this.serviceInstaller1.Description = "Monitors datecs directory to send ecr command form in file.";
             this.serviceInstaller1.ServiceName = "DudeFileService";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 
