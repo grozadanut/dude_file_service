@@ -87,6 +87,7 @@ namespace DUDEFileService
 
             ecrIp = lines[0];
             ecrPort = lines[1];
+            string resultFilePath = e.FullPath + RESULT_SUFFIX;
 
             for (int i = 2; i < lines.Length; i++)
                 ecrCommands += lines[i] + Environment.NewLine;
@@ -95,13 +96,14 @@ namespace DUDEFileService
             if (resultCode != 0)
             {
                 eventLog1.WriteEntry("OpenConnection result " + resultCode + " ecrIp "+ecrIp + " ecrPort "+ecrPort);
+                File.WriteAllText(resultFilePath, resultCode + ": " + serv.lastError_Message);
                 return;
             }
 
             if (ecrCommands.StartsWith("raportmf"))
             {
                 string[] command = ecrCommands.Split('&');// raportmf&start&end&directory
-                DownloadAnafXML(command[1], command[2], command[3], e.FullPath + RESULT_SUFFIX);
+                DownloadAnafXML(command[1], command[2], command[3], resultFilePath);
             }
             else
                 ExecuteScript(ecrCommands);
