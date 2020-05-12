@@ -81,13 +81,16 @@ namespace DUDEFileService
             // second line: ecr port
             // other lines: ecr commands
             String[] lines = File.ReadAllLines(e.FullPath);
+            string resultFilePath = e.FullPath + RESULT_SUFFIX;
 
             if (lines.Length < 3)
+            {
+                File.WriteAllText(resultFilePath, "-1: Fisierul de comenzi trebuie sa contina cel putin 3 linii!");
                 return;
+            }
 
             ecrIp = lines[0];
             ecrPort = lines[1];
-            string resultFilePath = e.FullPath + RESULT_SUFFIX;
 
             for (int i = 2; i < lines.Length; i++)
                 ecrCommands += lines[i] + Environment.NewLine;
@@ -103,22 +106,19 @@ namespace DUDEFileService
             if (ecrCommands.StartsWith("raportmf"))
             {
                 string[] command = ecrCommands.Split('&');// raportmf&start&end&directory
-                DownloadAnafXML(command[1], command[2], command[3], resultFilePath);
+                DownloadAnafXML(command[1], command[2], command[3], e.FullPath, resultFilePath);
             }
             else
-                ExecuteScript(ecrCommands);
+                ExecuteScript(ecrCommands, e.FullPath, resultFilePath);
 
             while (inCommand)
                 System.Threading.Thread.Sleep(100);
 
             StopConnection();
-
-            // delete the executed print file
-            File.Delete(e.FullPath);
         }
 
 
-        private void ExecuteScript(string cmd_Script)
+        private void ExecuteScript(string cmd_Script, string inputFilePath, string resultFilePath)
         {
             while (inCommand)
                 System.Threading.Thread.Sleep(100);
@@ -131,7 +131,12 @@ namespace DUDEFileService
                 {
                     int result = serv.execute_Script_V1(TScriptType.DS, cmd_Script);
                     if (result != 0)
+                    {
                         eventLog1.WriteEntry("Script result " + result + " for commands " + cmd_Script);
+                        File.WriteAllText(resultFilePath, result + ": " + serv.lastError_Message);
+                    }
+                    else // delete the executed print file
+                        File.Delete(inputFilePath);
                 }
                 finally
                 {
@@ -143,7 +148,7 @@ namespace DUDEFileService
         /**
          * DD-MM-YY hh:mm:ss DST
          */
-        private void DownloadAnafXML(string startDateTime, string endDateTime, string chosenDirectory, string resultFilePath)
+        private void DownloadAnafXML(string startDateTime, string endDateTime, string chosenDirectory, string inputFilePath, string resultFilePath)
         {
             while (inCommand)
                 System.Threading.Thread.Sleep(100);
@@ -187,6 +192,8 @@ namespace DUDEFileService
                         inCommand = false;
                         if (error_Code != 0)
                             eventLog1.WriteEntry(serv.lastError_Message);
+                        else
+                            File.Delete(inputFilePath);
                         serv.set_CommunicationEvents(Old_Active_OnSendCommand, Old_Active_OnWait, Old_Active_OnReceiveAnswer, Old_Active_OnStatusChange, Old_Active_OnError, false);
                         File.WriteAllText(resultFilePath, error_Code + ": " + serv.lastError_Message);
                     }
