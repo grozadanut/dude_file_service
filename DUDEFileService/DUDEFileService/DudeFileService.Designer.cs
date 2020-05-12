@@ -38,6 +38,7 @@
             this.fileSystemWatcher1.EnableRaisingEvents = true;
             this.fileSystemWatcher1.Filter = "*.in";
             this.fileSystemWatcher1.Path = "C:\\datecs";
+            this.fileSystemWatcher1.Changed += new System.IO.FileSystemEventHandler(this.fileSystemWatcher1_Changed);
             this.fileSystemWatcher1.Created += new System.IO.FileSystemEventHandler(this.FileSystemWatcher_Created);
             // 
             // eventLog1

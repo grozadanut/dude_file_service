@@ -17,6 +17,8 @@ namespace DUDEFileService
     {
         public static readonly String ECR_FOLDER_KEY = "ecr_folder";
 
+        private static readonly String RESULT_SUFFIX = "_result";
+
         private dude.CFD_DUDE serv;
         private bool inCommand = false;
 
@@ -61,7 +63,8 @@ namespace DUDEFileService
 
         protected override void OnStop()
         {
-            Stop_COMServer();
+            int result = Stop_COMServer();
+            eventLog1.WriteEntry("Stop_COMServer result " + result);
         }
 
         private void FileSystemWatcher_Created(object sender, FileSystemEventArgs e)
@@ -88,14 +91,24 @@ namespace DUDEFileService
             for (int i = 2; i < lines.Length; i++)
                 ecrCommands += lines[i] + Environment.NewLine;
 
-            OpenConnection(ecrIp, ecrPort);
+            int resultCode = OpenConnection(ecrIp, ecrPort);
+            if (resultCode != 0)
+            {
+                eventLog1.WriteEntry("OpenConnection result " + resultCode + " ecrIp "+ecrIp + " ecrPort "+ecrPort);
+                return;
+            }
+
             if (ecrCommands.StartsWith("raportmf"))
             {
                 string[] command = ecrCommands.Split('&');// raportmf&start&end&directory
-                DownloadAnafXML(command[1], command[2], command[3]);
+                DownloadAnafXML(command[1], command[2], command[3], e.FullPath + RESULT_SUFFIX);
             }
             else
                 ExecuteScript(ecrCommands);
+
+            while (inCommand)
+                System.Threading.Thread.Sleep(100);
+
             StopConnection();
 
             // delete the executed print file
@@ -114,7 +127,9 @@ namespace DUDEFileService
             {
                 try
                 {
-                    serv.execute_Script_V1(TScriptType.DS, cmd_Script);
+                    int result = serv.execute_Script_V1(TScriptType.DS, cmd_Script);
+                    if (result != 0)
+                        eventLog1.WriteEntry("Script result " + result + " for commands " + cmd_Script);
                 }
                 finally
                 {
@@ -126,10 +141,12 @@ namespace DUDEFileService
         /**
          * DD-MM-YY hh:mm:ss DST
          */
-        private void DownloadAnafXML(string startDateTime, string endDateTime, string chosenDirectory)
+        private void DownloadAnafXML(string startDateTime, string endDateTime, string chosenDirectory, string resultFilePath)
         {
             while (inCommand)
                 System.Threading.Thread.Sleep(100);
+
+            inCommand = true;
 
             bool Old_Active_OnSendCommand;
             bool Old_Active_OnReceiveAnswer;
@@ -146,11 +163,15 @@ namespace DUDEFileService
             try
             {
                 int error_Code = serv.set_Download_Path(chosenDirectory);
-                if (error_Code != 0) return;
+                if (error_Code != 0)
+                {
+                    eventLog1.WriteEntry("DownloadAnafXML error at set_Download_Path " + error_Code);
+                    inCommand = false;
+                    File.WriteAllText(resultFilePath, error_Code + ": " + serv.lastError_Message);
+                    return;
+                }
                 serv.DateRange_StartValue = startDateTime;
                 serv.DateRange_EndValue = endDateTime;
-
-                inCommand = true;
 
                 ThreadPool.QueueUserWorkItem(delegate
                 {
@@ -165,6 +186,7 @@ namespace DUDEFileService
                         if (error_Code != 0)
                             eventLog1.WriteEntry(serv.lastError_Message);
                         serv.set_CommunicationEvents(Old_Active_OnSendCommand, Old_Active_OnWait, Old_Active_OnReceiveAnswer, Old_Active_OnStatusChange, Old_Active_OnError, false);
+                        File.WriteAllText(resultFilePath, error_Code + ": " + serv.lastError_Message);
                     }
                 }, null);
             }
@@ -174,37 +196,39 @@ namespace DUDEFileService
             }
         }
 
-        private void OpenConnection(string ecrIp, string ecrPort)
+        private int OpenConnection(string ecrIp, string ecrPort)
         {
             int lanPort;
             int error_Code = 0;
 
-            if (serv == null) return;
+            if (serv == null) return -1995;
             
             if (serv.connected_ToDevice)
             {
                 if (serv.close_Connection() != 0)
                 {
                     eventLog1.WriteEntry(serv.lastError_Message);
-                    return;
+                    return -1995;
                 }
             }
             try
             {
                 
                 error_Code = serv.set_TransportType(TTransportProtocol.ctc_TCPIP);
-                if (error_Code != 0) return;
+                if (error_Code != 0) return error_Code;
 
                 lanPort = Int32.Parse(ecrPort);
                 error_Code = serv.set_TCPIP(ecrIp, (ushort)lanPort);
-                if (error_Code != 0) return;
+                if (error_Code != 0) return error_Code;
 
                 error_Code = serv.open_Connection();
-                if (error_Code != 0) return;
+                if (error_Code != 0) return error_Code;
+                return 0;
             }
             catch (Exception ex)
             {
                 eventLog1.WriteEntry("Open connection failed: " + ex.Message);
+                return -1995;
             }
             finally
             {
@@ -225,6 +249,7 @@ namespace DUDEFileService
             try
             {
                 serv = new CFD_DUDE();
+                eventLog1.WriteEntry("Start_COMServer");
             }
             catch (Exception t)
             {
@@ -263,6 +288,11 @@ namespace DUDEFileService
                     GC.WaitForPendingFinalizers();
                 }
             }
+        }
+
+        private void fileSystemWatcher1_Changed(object sender, FileSystemEventArgs e)
+        {
+
         }
     }
 }
