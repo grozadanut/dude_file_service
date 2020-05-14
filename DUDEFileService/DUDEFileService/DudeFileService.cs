@@ -169,7 +169,7 @@ namespace DUDEFileService
 
             try
             {
-                int error_Code = serv.set_Download_Path(chosenDirectory);
+                int error_Code = serv.set_Download_Path(chosenDirectory.Trim());
                 if (error_Code != 0)
                 {
                     eventLog1.WriteEntry("DownloadAnafXML error at set_Download_Path " + error_Code);
@@ -177,6 +177,24 @@ namespace DUDEFileService
                     File.WriteAllText(resultFilePath, error_Code + ": " + serv.lastError_Message);
                     return;
                 }
+
+                string chosenPath = serv.download_Path;
+                if (chosenPath == null || !chosenPath.Trim().Equals(chosenDirectory.Trim()))
+                {
+                    inCommand = false;
+
+                    string chosenPathC = "";
+                    foreach (char c in chosenPath)
+                        chosenPathC += " "+((int)c);
+                    string chosenDirectoryC = "";
+                    foreach (char c in chosenDirectory)
+                        chosenDirectoryC += " " + ((int)c);
+
+                    eventLog1.WriteEntry("DownloadAnafXML serv.download_Path not correct " + chosenPath +"("+ chosenPathC + ") should be " + chosenDirectory+"("+ chosenDirectoryC+")");
+                    File.WriteAllText(resultFilePath, "-1: DownloadAnafXML serv.download_Path not correct " + chosenPath + " should be " + chosenDirectory);
+                    return;
+                }
+                
                 serv.DateRange_StartValue = startDateTime;
                 serv.DateRange_EndValue = endDateTime;
 
