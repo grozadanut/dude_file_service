@@ -18,6 +18,8 @@ namespace DUDEFileService
         public static readonly String ECR_FOLDER_KEY = "ecr_folder";
 
         private static readonly String RESULT_SUFFIX = "_result";
+        private static readonly int NO_RETRY = 200;
+        private static readonly int NO_RETRY_CLOSE = 6000;
 
         private dude.CFD_DUDE serv;
         private bool inCommand = false;
@@ -95,6 +97,17 @@ namespace DUDEFileService
             for (int i = 2; i < lines.Length; i++)
                 ecrCommands += lines[i] + Environment.NewLine;
 
+            int noRetries = NO_RETRY;
+            while (inCommand)
+            {
+                if (noRetries-- < 0)
+                {
+                    eventLog1.WriteEntry("OpenConnection Timeout expired " + e.FullPath);
+                    break;
+                }
+                System.Threading.Thread.Sleep(100);
+            }
+
             int resultCode = OpenConnection(ecrIp, ecrPort);
             if (resultCode != 0)
             {
@@ -111,8 +124,17 @@ namespace DUDEFileService
             else
                 ExecuteScript(ecrCommands, e.FullPath, resultFilePath);
 
+            noRetries = NO_RETRY_CLOSE;
             while (inCommand)
+            {
+                if (noRetries-- < 0)
+                {
+                    eventLog1.WriteEntry("StopConnection Timeout expired " + e.FullPath);
+                    inCommand = false;
+                    break;
+                }
                 System.Threading.Thread.Sleep(100);
+            }
 
             StopConnection();
         }
@@ -120,8 +142,8 @@ namespace DUDEFileService
 
         private void ExecuteScript(string cmd_Script, string inputFilePath, string resultFilePath)
         {
-            while (inCommand)
-                System.Threading.Thread.Sleep(100);
+            //while (inCommand)
+            //    System.Threading.Thread.Sleep(100);
 
             inCommand = true;
 
@@ -138,6 +160,12 @@ namespace DUDEFileService
                     else // delete the executed print file
                         File.Delete(inputFilePath);
                 }
+                catch (Exception ex)
+                {
+                    inCommand = false;
+                    eventLog1.WriteEntry("Script exception: " + ex.Message);
+                    File.WriteAllText(resultFilePath, -145 + ": " + ex.Message);
+                }
                 finally
                 {
                     inCommand = false;
@@ -150,8 +178,8 @@ namespace DUDEFileService
          */
         private void DownloadAnafXML(string startDateTime, string endDateTime, string chosenDirectory, string inputFilePath, string resultFilePath)
         {
-            while (inCommand)
-                System.Threading.Thread.Sleep(100);
+            //while (inCommand)
+            //    System.Threading.Thread.Sleep(100);
 
             inCommand = true;
 
