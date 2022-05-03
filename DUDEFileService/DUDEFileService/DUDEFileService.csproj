@@ -53,10 +53,10 @@
     <StartupObject>DUDEFileService.Program</StartupObject>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>4774A583F9673779DB7EE02110EC505A4B6B04CD</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>A9229A19D8965CEEE57AA9381F482CAE99F70933</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>DUDEFileService_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>DUDEFileService_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <GenerateManifests>true</GenerateManifests>
@@ -95,6 +95,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="DUDEFileService_1_TemporaryKey.pfx" />
     <None Include="DUDEFileService_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>

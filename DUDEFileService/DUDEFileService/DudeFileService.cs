@@ -153,12 +153,13 @@ namespace DUDEFileService
                 {
                     int result = serv.execute_Script_V1(TScriptType.DS, cmd_Script);
                     if (result != 0)
-                    {
                         eventLog1.WriteEntry("Script result " + result + " for commands " + cmd_Script);
-                        File.WriteAllText(resultFilePath, result + ": " + serv.lastError_Message);
-                    }
                     else // delete the executed print file
                         File.Delete(inputFilePath);
+
+                    // always write the result file, even if success
+                    // result file is read and deleted by Colibri Platform
+                    File.WriteAllText(resultFilePath, result + ": " + serv.lastError_Message);
                 }
                 catch (Exception ex)
                 {
