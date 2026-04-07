@@ -15,13 +15,17 @@ line 2: ecr_port<br/>
 other lines: commands(as specified in the DUDE driver specification)
 
 ## Download the MF report
-`raportmf&{0}&{1}&{2}` <br/>
+line 1: ecr_ip<br/>
+line 2: ecr_port<br/>
+line 3: `raportmf&{0}&{1}&{2}` <br/>
 {0} = startDateTime with format: dd-MM-yy HH:mm:ss 'DST'(if start time is in DST); example: 01-01-24 10:00:00 DST<br/>
 {1} = endDateTime same format as start date<br/>
 {2} = chosenDirectory to export the report to
 
 ## Read receipts from ECR
-`receipts&{0}&{1}` <br/>
+line 1: ecr_ip<br/>
+line 2: ecr_port<br/>
+line 3: `receipts&{0}&{1}` <br/>
 {0} = startDateTime with format: dd-MM-yy HH:mm:ss 'DST'(if start time is in DST); example: 01-01-24 10:00:00 DST<br/>
 {1} = endDateTime same format as start date<br/>
 
