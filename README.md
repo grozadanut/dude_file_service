@@ -6,16 +6,23 @@ This is a Microsoft Visual Studio service for the DUDE driver for Datecs fiscal 
 3. Copy command files to ecr_folder location. The file should have **.in** extension
 4. The result of the command will be written in a file with the same name, appending **_result** suffix
 
+Note: currently the only implemented communication protocol is through LAN.
+
 # Command file structure
-The file with the commands should have the following structure:<br/>
+## Execute script
 line 1: ecr_ip<br/>
 line 2: ecr_port<br/>
 other lines: commands(as specified in the DUDE driver specification)
 
-Note: a special command can be given to download the MF report, in the following format:<br/>
+## Download the MF report
 `raportmf&{0}&{1}&{2}` <br/>
 {0} = startDateTime with format: dd-MM-yy HH:mm:ss 'DST'(if start time is in DST); example: 01-01-24 10:00:00 DST<br/>
 {1} = endDateTime same format as start date<br/>
 {2} = chosenDirectory to export the report to
 
-Note: currently the only implemented communication protocol is through LAN.
+## Read receipts from ECR
+`receipts&{0}&{1}` <br/>
+{0} = startDateTime with format: dd-MM-yy HH:mm:ss 'DST'(if start time is in DST); example: 01-01-24 10:00:00 DST<br/>
+{1} = endDateTime same format as start date<br/>
+
+The results will be saved to the same location of the input file appending `_result` to the filename.
