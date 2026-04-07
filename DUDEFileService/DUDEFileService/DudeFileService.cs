@@ -1,5 +1,5 @@
-﻿using dude;
-using System;
+﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -10,6 +10,7 @@ using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using dude;
 
 namespace DUDEFileService
 {
@@ -120,6 +121,11 @@ namespace DUDEFileService
             {
                 string[] command = ecrCommands.Split('&');// raportmf&start&end&directory
                 DownloadAnafXML(command[1], command[2], command[3], e.FullPath, resultFilePath);
+            }
+            else if (ecrCommands.StartsWith("receipts"))
+            {
+                string[] command = ecrCommands.Split('&');// receipts&start&end
+                DownloadReceipts(command[1].Trim(), command[2].Trim(), e.FullPath, resultFilePath);
             }
             else
                 ExecuteScript(ecrCommands, e.FullPath, resultFilePath);
@@ -250,6 +256,234 @@ namespace DUDEFileService
             {
 
             }
+        }
+
+        /**
+         * DD-MM-YY hh:mm:ss DST
+         */
+        private void DownloadReceipts(string startDateTime, string endDateTime, string inputFilePath, string resultFilePath)
+        {
+            try
+            {
+                string ErrorCode = null;
+                string StartDate = null;
+                string EndDate = null;
+                string RepFirstDoc = null;
+                string FirstDoc = null;
+                string RepLastDoc = null;
+                string LastDoc = null;
+                int error_Code = execute_124_ej_Search_Documents_ByDate(startDateTime, endDateTime, "1",
+                    ref ErrorCode, ref StartDate, ref EndDate, ref RepFirstDoc, ref FirstDoc, ref RepLastDoc, ref LastDoc);
+
+                if (error_Code != 0)
+                {
+                    eventLog1.WriteEntry("DownloadReceipts error at execute_124_ej_Search_Documents_ByDate: " + error_Code);
+                    File.WriteAllText(resultFilePath, ErrorCode + ": " + serv.lastError_Message);
+                    return;
+                }
+
+                int numOfReceipts = int.Parse(LastDoc);
+                int z = int.Parse(RepFirstDoc);
+                string receiptLines = "";
+
+                for (int i = int.Parse(FirstDoc); i < numOfReceipts; i++)
+                {
+                    string DocNumber = null;
+                    string RecReport = null;
+                    string RecNumber = null;
+                    string Date = null;
+                    string DocType = null;
+                    string ZNumber = null;
+
+                    error_Code = execute_125_ej_Set_Document_For_Reading("0", String.Format("{0}{1:0000}", z, i), "1", 
+                        ref ErrorCode, ref DocNumber, ref RecReport, ref RecNumber, ref Date, ref DocType, ref ZNumber);
+
+                    if (error_Code != 0)
+                    {
+                        eventLog1.WriteEntry("DownloadReceipts error at execute_125_ej_Set_Document_For_Reading: " + error_Code);
+                        File.WriteAllText(resultFilePath, ErrorCode + ": " + serv.lastError_Message);
+                        return;
+                    }
+
+                    string TextData = null;
+                    while (execute_125_ej_Get_LineAsText("1", ref ErrorCode, ref TextData) == 0)
+                    {
+                        receiptLines += TextData + Environment.NewLine;
+                    }
+                }
+
+                File.WriteAllText(resultFilePath, String.Format("0:{0}{1}", Environment.NewLine, receiptLines));
+            }
+            finally
+            {
+
+            }
+        }
+
+        int execute_124_ej_Search_Documents_ByDate(
+            string input_StartDate,
+            string input_EndDate,
+            string DocumentType,
+            ref string ErrorCode,
+            ref string StartDate,
+            ref string EndDate,
+            ref string RepFirstDoc,
+            ref string FirstDoc,
+            ref string RepLastDoc,
+            ref string LastDoc)
+        {
+            const string cmd = "124_ej_Search_Documents_ByDate";
+            int Result = -1;
+            ErrorCode = "-1";
+            try
+            {
+                try
+                {
+                    if (!serv.connected_ToDevice) return Result;
+                    if (serv.set_InputParam_ByName(cmd, "input_StartDate", input_StartDate) != 0)
+                    {
+                        
+                        eventLog1.WriteEntry("execute_124_ej_Search_Documents_ByDate input_StartDate: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    if (serv.set_InputParam_ByName(cmd, "input_EndDate", input_EndDate) != 0)
+                    {
+                        eventLog1.WriteEntry("execute_124_ej_Search_Documents_ByDate input_EndDate: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    if (serv.set_InputParam_ByName(cmd, "DocumentType", DocumentType) != 0)
+                    {
+                        eventLog1.WriteEntry("execute_124_ej_Search_Documents_ByDate DocumentType: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    if (serv.execute_Command_ByName(cmd) != 0)
+                    {
+                        eventLog1.WriteEntry("execute_124_ej_Search_Documents_ByDate execute: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    serv.get_OutputParam_ByName(cmd, "StartDate", ref StartDate);
+                    serv.get_OutputParam_ByName(cmd, "EndDate", ref EndDate);
+                    serv.get_OutputParam_ByName(cmd, "RepFirstDoc", ref RepFirstDoc);
+                    serv.get_OutputParam_ByName(cmd, "FirstDoc", ref FirstDoc);
+                    serv.get_OutputParam_ByName(cmd, "RepLastDoc", ref RepLastDoc);
+                    serv.get_OutputParam_ByName(cmd, "LastDoc", ref LastDoc);
+                }
+                catch (Exception ex)
+                {
+                    eventLog1.WriteEntry("execute_124_ej_Search_Documents_ByDate: " + ex.Message);
+                }
+            }
+            finally
+            {
+                Result = serv.lastError_Code;
+                serv.get_OutputParam_ByName(cmd, "ErrorCode", ErrorCode);
+            }
+            return Result;
+        }
+
+        int execute_125_ej_Set_Document_For_Reading(
+            string Option,         
+            string input_DocNumber,
+            string input_DocType,  
+            ref string ErrorCode,  
+            ref string DocNumber,  
+            ref string RecReport,  
+            ref string RecNumber,  
+            ref string Date,       
+            ref string DocType,    
+            ref string ZNumber)                          
+        {
+            const string cmd = "125_ej_Set_Document_For_Reading";
+            int Result = -1;
+            ErrorCode = "-1";
+            if (serv == null) return Result;
+            try
+            {
+                try
+                {
+                    if (!serv.connected_ToDevice) return Result;
+                    if (serv.set_InputParam_ByName(cmd, "Option", Option) != 0)
+                    {
+                        eventLog1.WriteEntry("execute_125_ej_Set_Document_For_Reading Option: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    if (serv.set_InputParam_ByName(cmd, "input_DocNumber", input_DocNumber) != 0)
+                    {
+                        eventLog1.WriteEntry("execute_125_ej_Set_Document_For_Reading input_DocNumber: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    if (serv.set_InputParam_ByName(cmd, "input_DocType", input_DocType) != 0)
+                    {
+                        eventLog1.WriteEntry("execute_125_ej_Set_Document_For_Reading input_DocType: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    if (serv.execute_Command_ByName(cmd) != 0)
+                    {
+                        eventLog1.WriteEntry("execute_125_ej_Set_Document_For_Reading execute: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    serv.get_OutputParam_ByName(cmd, "DocNumber", ref DocNumber);
+                    serv.get_OutputParam_ByName(cmd, "RecReport", ref RecReport);
+                    serv.get_OutputParam_ByName(cmd, "RecNumber", ref RecNumber);
+                    serv.get_OutputParam_ByName(cmd, "Date", ref Date);
+                    serv.get_OutputParam_ByName(cmd, "DocType", ref DocType);
+                    serv.get_OutputParam_ByName(cmd, "ZNumber", ref ZNumber);
+                }
+                catch (Exception ex)
+                {
+                    eventLog1.WriteEntry("execute_124_ej_Search_Documents_ByDate: " + ex.Message);
+                }
+            }
+            finally
+            {
+                Result = serv.lastError_Code;
+                serv.get_OutputParam_ByName(cmd, "ErrorCode", ErrorCode);
+            }
+            return Result;
+        }
+
+        int execute_125_ej_Get_LineAsText(
+            string Option,
+            ref string ErrorCode,
+            ref string TextData)
+        {
+            const string cmd = "125_ej_Get_LineAsText";
+            int Result = -1;
+            ErrorCode = "-1";
+            if (serv == null) return Result;
+            try
+            {
+                try
+                {
+                    if (!serv.connected_ToDevice)
+                    {
+                        eventLog1.WriteEntry("execute_125_ej_Get_LineAsText connected_ToDevice: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    if (serv.set_InputParam_ByName(cmd, "Option", Option) != 0)
+                    {
+                        eventLog1.WriteEntry("execute_125_ej_Get_LineAsText Option: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    if (serv.execute_Command_ByName(cmd) != 0)
+                    {
+                        if (serv.lastError_Code != -100003) // no more data
+                            eventLog1.WriteEntry("execute_125_ej_Get_LineAsText execute: " + serv.lastError_Code);
+                        return Result;
+                    }
+                    serv.get_OutputParam_ByName(cmd, "TextData", ref TextData);
+                }
+                catch (Exception ex)
+                {
+                    eventLog1.WriteEntry("execute_124_ej_Search_Documents_ByDate: " + ex.Message);
+                }
+            }
+            finally
+            {
+                Result = serv.lastError_Code;
+                serv.get_OutputParam_ByName(cmd, "ErrorCode", ErrorCode);
+            }
+            return Result;
         }
 
         private int OpenConnection(string ecrIp, string ecrPort)
